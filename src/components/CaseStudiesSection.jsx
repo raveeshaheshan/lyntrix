@@ -71,7 +71,7 @@ export default function CaseStudiesSection() {
   ];
 
   return (
-    <section id="case-studies" className="py-20 sm:py-28 relative bg-slate-950 border-t border-slate-800/80">
+    <section id="case-studies" className="py-20 sm:py-28 relative bg-transparent border-t border-slate-800/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}

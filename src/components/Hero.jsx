@@ -1,10 +1,78 @@
-import React from 'react';
-import { ArrowRight, ShieldCheck, Cpu, Cloud, Code, Terminal, CheckCircle2, ChevronRight, Play } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, ShieldCheck, Cpu, Cloud, Code, Terminal, CheckCircle2, ChevronRight, ChevronDown, Play } from 'lucide-react';
 import LatencyWidget from './LatencyWidget';
 
 export default function Hero({ onOpenCalculator, onOpenTracker }) {
+  const [isExiting, setIsExiting] = useState(false);
+
+  // Seamless blur-out & auto-scroll to Page 2 (#services) with ZERO awkward space
+  useEffect(() => {
+    let isTransitioning = false;
+
+    const autoScrollToNext = () => {
+      if (isTransitioning) return;
+      isTransitioning = true;
+      setIsExiting(true);
+
+      const nextSection = document.getElementById('services');
+      if (nextSection) {
+        const yOffset = -70; // clean navbar offset
+        const targetY = nextSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+
+      setTimeout(() => {
+        isTransitioning = false;
+      }, 900);
+    };
+
+    const handleWheel = (e) => {
+      // If at top in Hero and scrolling down
+      if (window.scrollY < 80 && e.deltaY > 15 && !isTransitioning) {
+        autoScrollToNext();
+      }
+    };
+
+    let touchStartY = 0;
+    const handleTouchStart = (e) => {
+      touchStartY = e.touches[0].clientY;
+    };
+    const handleTouchEnd = (e) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      const diffY = touchStartY - touchEndY;
+      if (window.scrollY < 80 && diffY > 35 && !isTransitioning) {
+        autoScrollToNext();
+      }
+    };
+
+    // When scrolling back up to top, restore crisp focus
+    const handleScroll = () => {
+      if (window.scrollY < 50) {
+        setIsExiting(false);
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
   return (
-    <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 md:pt-40 md:pb-28 overflow-hidden bg-grid-pattern">
+    <section 
+      id="hero-section"
+      className={`relative pt-28 pb-16 sm:pt-36 sm:pb-24 md:pt-40 md:pb-28 overflow-hidden bg-grid-pattern transition-all duration-700 ease-out ${
+        isExiting 
+          ? 'filter blur-lg opacity-0 -translate-y-8 scale-[0.98]' 
+          : 'filter blur-0 opacity-100 translate-y-0 scale-100'
+      }`}
+    >
       {/* Glow Effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[600px] h-[200px] sm:h-[300px] bg-cyan-500/10 rounded-full blur-[90px] sm:blur-[120px] pointer-events-none animate-pulse-glow" />
       <div className="absolute top-1/3 left-4 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-indigo-500/10 rounded-full blur-[80px] sm:blur-[100px] pointer-events-none" />
@@ -71,75 +139,6 @@ export default function Hero({ onOpenCalculator, onOpenTracker }) {
           </div>
         </div>
 
-        {/* Hero Visual Card Showcase */}
-        <div className="mt-10 sm:mt-14 relative max-w-5xl mx-auto">
-          {/* Card Border glow wrapper */}
-          <div className="relative rounded-2xl p-0.5 sm:p-1 bg-gradient-to-b from-cyan-500/40 via-indigo-500/20 to-slate-900/90 shadow-2xl shadow-cyan-950/50">
-            <div className="relative rounded-xl overflow-hidden bg-slate-950/90 backdrop-blur-xl border border-slate-800">
-              
-              {/* Fake Terminal / Window Header */}
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-rose-500/80" />
-                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-500/80" />
-                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500/80" />
-                  <span className="ml-2 text-[10px] sm:text-xs font-mono text-slate-400 truncate max-w-[150px] sm:max-w-none">lyntrix-infrastructure-console.cloud</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono text-cyan-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
-                  <span className="hidden sm:inline">STATUS: </span>
-                  <span>ACTIVE_SOC</span>
-                </div>
-              </div>
-
-              {/* Banner Showcase */}
-              <div className="relative aspect-[16/9] sm:aspect-[21/9] w-full overflow-hidden bg-slate-950">
-                <img 
-                  src="/banner.jpg" 
-                  alt="Lyntrix IT Services Infrastructure Banner"
-                  className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700 opacity-90"
-                />
-                
-                {/* Dark gradient overlay for contrast */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
-
-                {/* Floating Tech Badges over image */}
-                <div className="absolute bottom-4 left-4 right-4 hidden md:flex items-center justify-between gap-2">
-                  <div className="glass-panel px-3.5 py-2 rounded-xl flex items-center gap-3 border border-slate-700/60">
-                    <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                      <Cpu className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-400 font-mono">Microservices</div>
-                      <div className="text-xs sm:text-sm font-bold text-white">Kubernetes & AWS Native</div>
-                    </div>
-                  </div>
-
-                  <div className="glass-panel px-3.5 py-2 rounded-xl flex items-center gap-3 border border-slate-700/60">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-                      <ShieldCheck className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-400 font-mono">Cybersecurity</div>
-                      <div className="text-xs sm:text-sm font-bold text-white">Zero-Trust Shielding</div>
-                    </div>
-                  </div>
-
-                  <div className="glass-panel px-3.5 py-2 rounded-xl flex items-center gap-3 border border-slate-700/60">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
-                      <Cloud className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-400 font-mono">Cloud SLA</div>
-                      <div className="text-xs sm:text-sm font-bold text-white">99.99% Availability</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
 
         {/* Live Network Latency Diagnostic Bar */}
         <div className="mt-8">
@@ -166,7 +165,34 @@ export default function Hero({ onOpenCalculator, onOpenTracker }) {
           </div>
         </div>
 
+        {/* Swipe to Next Section Transition Prompt */}
+        <div className="mt-12 sm:mt-16 flex flex-col items-center justify-center">
+          <a
+            href="#services"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="group flex flex-col items-center gap-2.5 cursor-pointer select-none"
+            title="Swipe down to explore Core Services"
+          >
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 group-hover:border-cyan-400 shadow-xl backdrop-blur-md transition-all">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0" />
+              <span className="text-[11px] font-mono font-semibold text-slate-300 group-hover:text-cyan-300 transition-colors uppercase tracking-widest">
+                Swipe to explore
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-cyan-400 group-hover:translate-y-0.5 transition-transform" />
+            </div>
+            <div className="w-5 h-8 rounded-full border-2 border-slate-700/80 flex items-start justify-center p-1 group-hover:border-cyan-400 transition-colors">
+              <div className="w-1 h-2 rounded-full bg-cyan-400 animate-bounce" />
+            </div>
+          </a>
+        </div>
+
       </div>
+
+      {/* Holographic Laser Swipe Divider Line */}
+      <div className="laser-swipe-divider mt-8" />
     </section>
   );
 }

@@ -90,7 +90,7 @@ export default function ServicesSection() {
   const currentService = services[activeTab];
 
   return (
-    <section id="services" className="py-16 sm:py-24 relative bg-slate-950">
+    <section id="services" className="py-16 sm:py-24 relative bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}

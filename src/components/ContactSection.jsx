@@ -110,7 +110,7 @@ export default function ContactSection({ estimateData, onInquirySubmitted, curre
   };
 
   return (
-    <section id="contact" className="py-16 sm:py-24 relative bg-slate-950">
+    <section id="contact" className="py-16 sm:py-24 relative bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">

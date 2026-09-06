@@ -15,6 +15,9 @@ import AdminDashboard from './components/AdminDashboard';
 import ProjectTrackerModal from './components/ProjectTrackerModal';
 import AuthModal from './components/AuthModal';
 import UserProfileModal from './components/UserProfileModal';
+import LaserSolidsBackground from './components/LaserSolidsBackground';
+import MatrixBackground from './components/MatrixBackground';
+import SwipeReveal from './components/SwipeReveal';
 import { db } from './services/db';
 import { LayoutDashboard, AlertTriangle } from 'lucide-react';
 
@@ -183,6 +186,7 @@ export default function App() {
   if (maintenanceConfig.enabled && maintenanceConfig.mode === 'full' && !isAdminLoggedIn && viewMode !== 'admin') {
     return (
       <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-300 font-sans">
+        <LaserSolidsBackground opacity={0.35} />
         {/* Background Cyber Glowing Orbs */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -255,6 +259,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-300 relative">
+      {/* High-Tech 3D Holographic Laser Solids Background ("Ganavasthu / Solid Items") */}
+      <LaserSolidsBackground opacity={0.72} />
       
       {/* Floating Admin Switcher when logged in */}
       {isAdminLoggedIn && (
@@ -281,25 +287,43 @@ export default function App() {
         maintenanceConfig={maintenanceConfig}
       />
 
-      <main>
+      <main className="relative z-10">
         <Hero onOpenCalculator={handleOpenCalculator} onOpenTracker={() => setIsTrackerOpen(true)} />
-        <ServicesSection dbTrigger={dbTrigger} />
-        <SolutionsSection />
-        <CaseStudiesSection />
-        <InteractiveCostCalculator onSelectEstimate={handleSelectEstimate} dbTrigger={dbTrigger} />
-        <TechStackSection />
-        <AboutSection />
-        <TestimonialsSection />
-        <FAQSection />
-        <ContactSection
-          estimateData={estimateData}
-          onInquirySubmitted={triggerDataRefresh}
-          currentUser={currentUser}
-          onOpenAuth={(mode = 'signin') => {
-            setInitialAuthMode(mode);
-            setIsAuthOpen(true);
-          }}
-        />
+        <SwipeReveal>
+          <ServicesSection dbTrigger={dbTrigger} />
+        </SwipeReveal>
+        <SwipeReveal>
+          <SolutionsSection />
+        </SwipeReveal>
+        <SwipeReveal>
+          <CaseStudiesSection />
+        </SwipeReveal>
+        <SwipeReveal>
+          <InteractiveCostCalculator onSelectEstimate={handleSelectEstimate} dbTrigger={dbTrigger} />
+        </SwipeReveal>
+        <SwipeReveal>
+          <TechStackSection />
+        </SwipeReveal>
+        <SwipeReveal>
+          <AboutSection />
+        </SwipeReveal>
+        <SwipeReveal>
+          <TestimonialsSection />
+        </SwipeReveal>
+        <SwipeReveal>
+          <FAQSection />
+        </SwipeReveal>
+        <SwipeReveal>
+          <ContactSection
+            estimateData={estimateData}
+            onInquirySubmitted={triggerDataRefresh}
+            currentUser={currentUser}
+            onOpenAuth={(mode = 'signin') => {
+              setInitialAuthMode(mode);
+              setIsAuthOpen(true);
+            }}
+          />
+        </SwipeReveal>
       </main>
 
       <Footer

@@ -19,7 +19,7 @@ export default function Footer({ onOpenAdminLogin, isAdminLoggedIn, onOpenAdminD
   };
 
   return (
-    <footer className="bg-slate-950 border-t border-slate-800 text-slate-400 text-sm font-light pt-16 pb-12">
+    <footer className="bg-slate-950/60 backdrop-blur-md border-t border-slate-800 text-slate-400 text-sm font-light pt-16 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
