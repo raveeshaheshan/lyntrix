@@ -315,7 +315,7 @@ export const db = {
         const localOnlyInquiries = fullyMerged.filter(l => l && l.id && !cloudIds.has(l.id));
         if (localOnlyInquiries.length > 0) {
           const sanitized = localOnlyInquiries.map(sanitizeInquiryForCloud);
-          await supabase.from('inquiries').upsert(sanitized, { onConflict: 'id' }).catch(() => {});
+          await supabase.from('inquiries').upsert(sanitized, { onConflict: 'id' });
         }
       }
 
@@ -337,7 +337,7 @@ export const db = {
         const localOnlyUsers = fullyMergedUsers.filter(u => u && u.email && !cloudEmails.has(u.email.toLowerCase()));
         if (localOnlyUsers.length > 0) {
           const sanitized = localOnlyUsers.map(sanitizeUserForCloud);
-          await supabase.from('users').upsert(sanitized, { onConflict: 'email' }).catch(() => {});
+          await supabase.from('users').upsert(sanitized, { onConflict: 'email' });
         }
       }
 
@@ -358,7 +358,7 @@ export const db = {
         const localOnlyAdmins = fullyMerged.filter(a => a && a.email && !cloudAdminEmails.has(a.email.toLowerCase()));
         if (localOnlyAdmins.length > 0) {
           const sanitized = localOnlyAdmins.map(sanitizeAdminForCloud);
-          await supabase.from('admins').upsert(sanitized, { onConflict: 'email' }).catch(() => {});
+          await supabase.from('admins').upsert(sanitized, { onConflict: 'email' });
         }
       }
 
