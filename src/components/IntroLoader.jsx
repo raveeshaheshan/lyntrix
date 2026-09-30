@@ -1,20 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-const KEY = 'lyntrix-intro-seen';
 const DURATION = 1900; // ms of the loading sequence
 const EXIT = 800; // ms of the exit transition
 
 const reduced = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/** Intro plays once per browser session. Evaluated at import so the hero can time its entrance. */
-const shouldPlay = (() => {
-  try {
-    return !reduced() && !sessionStorage.getItem(KEY);
-  } catch {
-    return !reduced();
-  }
-})();
+/** Intro plays on every page load (skipped only for reduced-motion). Evaluated at import so the hero can time its entrance. */
+const shouldPlay = !reduced();
 
 if (typeof document !== 'undefined') {
   document.documentElement.style.setProperty('--intro', shouldPlay ? `${(DURATION + 250) / 1000}s` : '0s');
@@ -50,7 +43,6 @@ export default function IntroLoader() {
         raf = requestAnimationFrame(tick);
       } else {
         setPhase('exiting');
-        try { sessionStorage.setItem(KEY, '1'); } catch { /* private mode */ }
         exitTimer = setTimeout(() => setPhase('done'), EXIT);
       }
     };
