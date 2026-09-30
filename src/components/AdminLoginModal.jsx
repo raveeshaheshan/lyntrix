@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Lock, Mail, Key, ShieldCheck, X, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Mail, ShieldCheck, AlertCircle, Lock } from 'lucide-react';
 import { db } from '../services/db';
+import { Modal, Field, PasswordInput } from './admin/ui';
 
 export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -8,6 +9,10 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const timer = useRef(null);
+
+  // Never leave a pending auth callback behind if the modal unmounts mid-request
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   if (!isOpen) return null;
 
@@ -16,7 +21,7 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
+    timer.current = setTimeout(() => {
       setLoading(false);
       const authResult = db.validateAdminCredentials(email, password);
       if (authResult && authResult.success) {
@@ -25,107 +30,81 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
         setEmail('');
         setPassword('');
       } else {
-        setError('Invalid admin credentials. Access Denied by Cloud Database Authentication Sentinel.');
+        setError('Invalid admin credentials. Access denied.');
       }
     }, 600);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md glass-card p-6 sm:p-8 rounded-2xl border border-cyan-500/40 shadow-2xl shadow-cyan-950/60 overflow-hidden">
-        
-        {/* Glow */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 transition-colors"
-        >
-          <X className="w-4 h-4" />
+    <Modal
+      size="sm"
+      eyebrow="Restricted area"
+      title="Admin sign in"
+      onClose={onClose}
+      footer={
+        <button type="submit" form="admin-login-form" disabled={loading} className="btn btn-primary w-full sm:w-auto disabled:opacity-70">
+          {loading ? (
+            <>
+              <span className="w-4 h-4 rounded-full border-2 border-[var(--accent-ink)] border-t-transparent animate-spin" />
+              Verifying…
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-4 h-4" />
+              Sign in to console
+            </>
+          )}
         </button>
-
-        {/* Modal Header */}
-        <div className="text-center space-y-2 mb-6">
-          <div className="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto border border-cyan-500/30">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h3 className="text-2xl font-extrabold text-white font-['Outfit']">Cloud Admin Portal</h3>
-          <p className="text-xs text-slate-400 font-mono">AUTHENTICATE WITH SECURE CREDENTIALS</p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs font-mono flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-300">Admin Email Address</label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-              <input
-                type="email"
-                required
-                placeholder="Enter admin email..."
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs font-mono focus:border-cyan-400 focus:outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono text-slate-300">Access Key / Password</label>
-            <div className="relative">
-              <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                placeholder="Enter password..."
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs font-mono focus:border-cyan-400 focus:outline-none transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-slate-400 hover:text-white transition-colors"
-                title={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="glow-btn w-full py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2 font-mono">
-                  <span className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
-                  Connecting Cloud Auth DB...
-                </span>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Authenticate & Launch Console</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-6 pt-4 border-t border-slate-800 text-[10px] text-slate-500 text-center font-mono">
-          🔒 Cloud Database Session • 256-bit AES Encryption
-        </div>
-
+      }
+    >
+      <div className="flex items-center gap-3 mb-5">
+        <span className="w-11 h-11 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] grid place-items-center shrink-0">
+          <Lock className="w-5 h-5" />
+        </span>
+        <p className="text-sm text-[var(--muted)] leading-relaxed">
+          Authenticate with your administrator credentials to open the console.
+        </p>
       </div>
-    </div>
+
+      {error && (
+        <div role="alert" className="mb-4 p-3.5 rounded-xl border border-rose-400/30 bg-rose-400/10 text-sm text-rose-200 flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form id="admin-login-form" onSubmit={handleLogin} className="space-y-4">
+        <Field label="Admin email">
+          <div className="relative">
+            <Mail className="w-4 h-4 text-[var(--muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="email"
+              required
+              autoFocus
+              autoComplete="username"
+              placeholder="admin@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="field pl-10"
+            />
+          </div>
+        </Field>
+
+        <Field label="Password">
+          <PasswordInput
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            show={showPassword}
+            onToggle={() => setShowPassword(!showPassword)}
+            placeholder="Enter password"
+          />
+        </Field>
+      </form>
+
+      <p className="mt-5 pt-4 border-t border-[var(--line)] text-xs text-[var(--muted)] flex items-center gap-2">
+        <Lock className="w-3.5 h-3.5 shrink-0" />
+        Sessions are validated against the cloud database.
+      </p>
+    </Modal>
   );
 }
