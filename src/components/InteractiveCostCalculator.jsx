@@ -1,7 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Check, Sparkles, Send, ShieldAlert, Zap, Layers, RefreshCw } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { db } from '../services/db';
+import SectionHeader from './SectionHeader';
+
+const SCALE_OPTIONS = [
+  { id: 'mvp', name: 'Startup / MVP', multiplier: 1.0, duration: '2-4 weeks' },
+  { id: 'growth', name: 'Growth platform', multiplier: 1.8, duration: '4-8 weeks' },
+  { id: 'enterprise', name: 'Enterprise scale', multiplier: 3.2, duration: '8-16 weeks' },
+];
+
+const CLOUD_OPTIONS = [
+  { id: 'aws', name: 'AWS native' },
+  { id: 'azure', name: 'Microsoft Azure' },
+  { id: 'multicloud', name: 'Multi-cloud hybrid (+20%)' },
+];
+
+const SUPPORT_OPTIONS = [
+  { id: 'standard', name: 'Standard (business hours)', cost: 0 },
+  { id: 'premium', name: '24/7 managed SOC (<15m SLA)', cost: 800 },
+];
+
+function Step({ n, title, children }) {
+  return (
+    <fieldset className="space-y-3 min-w-0">
+      <legend className="flex items-center gap-2.5 mb-3">
+        <span className="w-5 h-5 rounded-full border border-[var(--line-strong)] text-[10px] font-mono text-[var(--muted)] grid place-items-center">{n}</span>
+        <span className="label !text-[var(--text-2)]">{title}</span>
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+function Option({ selected, onClick, children, className = '', multi = false }) {
+  return (
+    <button
+      type="button"
+      role={multi ? 'checkbox' : 'radio'}
+      aria-checked={selected}
+      onClick={onClick}
+      className={`surface-interactive w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 min-h-[3rem] ${
+        selected ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-white' : 'border-[var(--line)] bg-[var(--surface-2)] text-[var(--text-2)]'
+      } ${className}`}
+    >
+      <span className="min-w-0 text-sm">{children}</span>
+      <span
+        className={`w-5 h-5 grid place-items-center shrink-0 border ${multi ? 'rounded-md' : 'rounded-full'} ${
+          selected ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-ink)]' : 'border-[var(--line-strong)]'
+        }`}
+      >
+        {selected && <Check className="w-3 h-3" strokeWidth={3} />}
+      </span>
+    </button>
+  );
+}
 
 export default function InteractiveCostCalculator({ onSelectEstimate, dbTrigger }) {
   const [serviceType, setServiceType] = useState('software');
@@ -11,7 +64,7 @@ export default function InteractiveCostCalculator({ onSelectEstimate, dbTrigger 
   const [selectedAddons, setSelectedAddons] = useState(['security_audit', 'ci_cd']);
   const [submitted, setSubmitted] = useState(false);
 
-  // Dynamic DB Prices
+  // Dynamic DB prices
   const [dbServices, setDbServices] = useState(db.getServices());
   const [dbAddons, setDbAddons] = useState(db.getAddons());
 
@@ -22,294 +75,166 @@ export default function InteractiveCostCalculator({ onSelectEstimate, dbTrigger 
     };
     handleDbUpdate();
     window.addEventListener('lyntrix-db-updated', handleDbUpdate);
-    return () => {
-      window.removeEventListener('lyntrix-db-updated', handleDbUpdate);
-    };
+    return () => window.removeEventListener('lyntrix-db-updated', handleDbUpdate);
   }, [dbTrigger]);
 
-  const serviceOptions = dbServices.map(s => ({
+  const serviceOptions = dbServices.map((s) => ({
     id: s.id,
-    name: `${s.title} (Base $${s.basePrice.toLocaleString()})`,
-    base: s.basePrice
+    name: s.title,
+    label: `${s.title} (Base $${s.basePrice.toLocaleString()})`,
+    base: s.basePrice,
   }));
 
-  const scaleOptions = [
-    { id: 'mvp', name: 'Startup / MVP Scope', multiplier: 1.0, duration: '2-4 Weeks' },
-    { id: 'growth', name: 'Growth Business Platform', multiplier: 1.8, duration: '4-8 Weeks' },
-    { id: 'enterprise', name: 'Enterprise Scale Architecture', multiplier: 3.2, duration: '8-16 Weeks' },
-  ];
+  const toggleAddon = (id) =>
+    setSelectedAddons((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const cloudOptions = [
-    { id: 'aws', name: 'AWS Native' },
-    { id: 'azure', name: 'Microsoft Azure' },
-    { id: 'multicloud', name: 'Multi-Cloud Hybrid (+20%)' },
-  ];
+  const selectedService = serviceOptions.find((s) => s.id === serviceType) || serviceOptions[0];
+  const selectedScale = SCALE_OPTIONS.find((s) => s.id === scale);
+  const selectedSupport = SUPPORT_OPTIONS.find((s) => s.id === supportTier);
 
-  const supportOptions = [
-    { id: 'standard', name: 'Standard (Business Hours)', cost: 0 },
-    { id: 'premium', name: '24/7 Managed SOC (<15m SLA)', cost: 800 },
-  ];
-
-  const toggleAddon = (id) => {
-    if (selectedAddons.includes(id)) {
-      setSelectedAddons(selectedAddons.filter(item => item !== id));
-    } else {
-      setSelectedAddons([...selectedAddons, id]);
-    }
-  };
-
-  // Calculate Total Estimate
-  const selectedServiceObj = serviceOptions.find(s => s.id === serviceType) || serviceOptions[0];
-  const selectedScaleObj = scaleOptions.find(s => s.id === scale);
-  const selectedSupportObj = supportOptions.find(s => s.id === supportTier);
-
-  let basePrice = selectedServiceObj ? selectedServiceObj.base : 3500;
-  basePrice *= selectedScaleObj ? selectedScaleObj.multiplier : 1.8;
+  let basePrice = selectedService ? selectedService.base : 3500;
+  basePrice *= selectedScale ? selectedScale.multiplier : 1.8;
   if (cloudEnv === 'multicloud') basePrice *= 1.2;
-  basePrice += selectedSupportObj ? selectedSupportObj.cost : 0;
+  basePrice += selectedSupport ? selectedSupport.cost : 0;
 
-  const addonsTotal = selectedAddons.reduce((sum, addonId) => {
-    const found = dbAddons.find(a => a.id === addonId);
+  const addonsTotal = selectedAddons.reduce((sum, id) => {
+    const found = dbAddons.find((a) => a.id === id);
     return sum + (found ? found.price : 0);
   }, 0);
 
-  const totalEstimate = Math.round(basePrice + addonsTotal);
-  const minEstimate = Math.round(totalEstimate * 0.9);
-  const maxEstimate = Math.round(totalEstimate * 1.15);
+  const total = Math.round(basePrice + addonsTotal);
+  const min = Math.round(total * 0.9);
+  const max = Math.round(total * 1.15);
 
   const handleRequestQuote = () => {
     try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.7 }
-      });
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 }, colors: ['#38bdf8', '#818cf8', '#ffffff'] });
     } catch (e) {
-      // fallback
+      // confetti is decorative
     }
     setSubmitted(true);
     if (onSelectEstimate) {
       onSelectEstimate({
-        service: selectedServiceObj.name,
-        scale: selectedScaleObj.name,
-        estimateRange: `$${minEstimate.toLocaleString()} - $${maxEstimate.toLocaleString()}`,
-        duration: selectedScaleObj.duration
+        // Contact form derives the service name from text before "(" — keep that shape
+        service: selectedService.label,
+        scale: selectedScale.name,
+        estimateRange: `$${min.toLocaleString()} - $${max.toLocaleString()}`,
+        duration: selectedScale.duration,
       });
     }
   };
 
   return (
-    <section id="calculator" className="py-16 sm:py-24 relative bg-slate-900/60 border-y border-slate-800/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16 space-y-3 sm:space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-950/80 border border-cyan-800/60 text-xs font-mono text-cyan-400">
-            <Calculator className="w-3.5 h-3.5" />
-            <span>TRANSPARENT ESTIMATION TOOL</span>
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-white font-['Outfit']">
-            Instant <span className="text-gradient-cyan">Project Estimator</span>
-          </h2>
-          <p className="text-slate-400 text-sm sm:text-base font-light">
-            Configure your technical requirements below for an instant budget and timeline projection.
-          </p>
-        </div>
+    <section id="calculator" className="section section-tint">
+      <div className="container-x">
+        <SectionHeader index="04" label="Estimator" title="Instant" accent="project estimate.">
+          Configure your requirements for a budget and timeline projection. Prices update live from our current rate card.
+        </SectionHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-          
-          {/* Left Controls Column */}
-          <div className="lg:col-span-8 space-y-6 sm:space-y-8 glass-card p-5 sm:p-8 rounded-2xl border border-slate-800">
-            
-            {/* Step 1: Service Type */}
-            <div className="space-y-3">
-              <label className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-cyan-400 flex items-center gap-2">
-                <span>1. Select Primary Service Area</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="grid lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-8 surface p-5 sm:p-8 space-y-8">
+            <Step n="1" title="Primary service area">
+              <div role="radiogroup" className="grid sm:grid-cols-2 gap-2.5">
                 {serviceOptions.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setServiceType(s.id)}
-                    className={`p-3 sm:p-3.5 rounded-xl text-left border transition-all text-xs sm:text-sm flex items-center justify-between ${
-                      serviceType === s.id
-                        ? 'bg-cyan-950/60 border-cyan-500/80 text-white shadow-md shadow-cyan-950'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                    }`}
-                  >
+                  <Option key={s.id} selected={serviceType === s.id} onClick={() => setServiceType(s.id)}>
                     <span className="font-medium">{s.name}</span>
-                    {serviceType === s.id && <Check className="w-4 h-4 text-cyan-400 shrink-0 ml-1" />}
-                  </button>
+                    <span className="block text-xs text-[var(--muted)] font-mono mt-0.5">from ${s.base.toLocaleString()}</span>
+                  </Option>
                 ))}
               </div>
-            </div>
+            </Step>
 
-            {/* Step 2: Scale & Complexity */}
-            <div className="space-y-3">
-              <label className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-cyan-400">
-                2. Project Scale & Complexity
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                {scaleOptions.map((sc) => (
-                  <button
-                    key={sc.id}
-                    onClick={() => setScale(sc.id)}
-                    className={`p-3.5 sm:p-4 rounded-xl text-left border transition-all ${
-                      scale === sc.id
-                        ? 'bg-cyan-950/60 border-cyan-500/80 text-white'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="font-semibold text-xs sm:text-sm">{sc.name}</div>
-                    <div className="text-[10px] sm:text-xs text-slate-400 font-mono mt-1">Est: {sc.duration}</div>
-                  </button>
+            <Step n="2" title="Scale & complexity">
+              <div role="radiogroup" className="grid sm:grid-cols-3 gap-2.5">
+                {SCALE_OPTIONS.map((sc) => (
+                  <Option key={sc.id} selected={scale === sc.id} onClick={() => setScale(sc.id)}>
+                    <span className="font-medium">{sc.name}</span>
+                    <span className="block text-xs text-[var(--muted)] font-mono mt-0.5">{sc.duration}</span>
+                  </Option>
                 ))}
               </div>
-            </div>
+            </Step>
 
-            {/* Step 3: Cloud & SLA Support */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              <div className="space-y-3">
-                <label className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-cyan-400">
-                  3. Cloud Environment
-                </label>
-                <div className="space-y-2">
-                  {cloudOptions.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setCloudEnv(c.id)}
-                      className={`w-full p-2.5 sm:p-3 rounded-lg text-left text-xs font-mono border transition-all ${
-                        cloudEnv === c.id
-                          ? 'bg-slate-800 border-cyan-500 text-white'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400'
-                      }`}
-                    >
+            <div className="grid sm:grid-cols-2 gap-8">
+              <Step n="3" title="Cloud environment">
+                <div role="radiogroup" className="space-y-2.5">
+                  {CLOUD_OPTIONS.map((c) => (
+                    <Option key={c.id} selected={cloudEnv === c.id} onClick={() => setCloudEnv(c.id)}>
                       {c.name}
-                    </button>
+                    </Option>
                   ))}
                 </div>
-              </div>
+              </Step>
 
-              <div className="space-y-3">
-                <label className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-cyan-400">
-                  4. Support & SOC SLA
-                </label>
-                <div className="space-y-2">
-                  {supportOptions.map((sp) => (
-                    <button
-                      key={sp.id}
-                      onClick={() => setSupportTier(sp.id)}
-                      className={`w-full p-2.5 sm:p-3 rounded-lg text-left text-xs font-mono border transition-all ${
-                        supportTier === sp.id
-                          ? 'bg-slate-800 border-cyan-500 text-white'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400'
-                      }`}
-                    >
+              <Step n="4" title="Support & SLA">
+                <div role="radiogroup" className="space-y-2.5">
+                  {SUPPORT_OPTIONS.map((sp) => (
+                    <Option key={sp.id} selected={supportTier === sp.id} onClick={() => setSupportTier(sp.id)}>
                       {sp.name}
-                    </button>
+                    </Option>
                   ))}
                 </div>
-              </div>
+              </Step>
             </div>
 
-            {/* Step 4: Optional Enhancements */}
-            <div className="space-y-3">
-              <label className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-cyan-400">
-                5. Optional Technical Add-ons
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                {dbAddons.map((addon) => {
-                  const isChecked = selectedAddons.includes(addon.id);
-                  return (
-                    <button
-                      key={addon.id}
-                      onClick={() => toggleAddon(addon.id)}
-                      className={`p-3 rounded-xl border text-xs text-left transition-all flex items-center justify-between ${
-                        isChecked
-                          ? 'bg-indigo-950/50 border-indigo-500/60 text-white'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-medium text-slate-200">{addon.name}</div>
-                        <div className="text-[10px] sm:text-[11px] text-slate-400 font-mono">+${addon.price.toLocaleString()}</div>
-                      </div>
-                      <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ml-2 ${
-                        isChecked ? 'bg-indigo-500 border-indigo-400 text-white' : 'border-slate-700'
-                      }`}>
-                        {isChecked && <Check className="w-3 h-3" />}
-                      </div>
-                    </button>
-                  );
-                })}
+            <Step n="5" title="Optional add-ons">
+              <div className="grid sm:grid-cols-2 gap-2.5">
+                {dbAddons.map((addon) => (
+                  <Option key={addon.id} multi selected={selectedAddons.includes(addon.id)} onClick={() => toggleAddon(addon.id)}>
+                    <span className="font-medium">{addon.name}</span>
+                    <span className="block text-xs text-[var(--muted)] font-mono mt-0.5">+${addon.price.toLocaleString()}</span>
+                  </Option>
+                ))}
               </div>
-            </div>
-
+            </Step>
           </div>
 
-          {/* Right Summary Column */}
-          <div className="lg:col-span-4 lg:sticky lg:top-28 w-full space-y-4">
-            <div className="glass-card p-5 sm:p-6 rounded-2xl border border-cyan-500/40 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-
-              <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800">
-                <span className="text-[11px] sm:text-xs font-mono uppercase text-slate-400">ESTIMATED INVESTMENT</span>
-                <span className="text-[11px] sm:text-xs font-mono text-cyan-400">USD $</span>
+          {/* Summary */}
+          <aside className="lg:col-span-4 lg:sticky lg:top-24">
+            <div className="surface p-5 sm:p-6">
+              <div className="label">Estimated investment</div>
+              <div className="mt-4">
+                <div className="stat !text-[clamp(1.6rem,3.4vw,2.25rem)] tabular-nums break-words">
+                  ${min.toLocaleString()} – ${max.toLocaleString()}
+                </div>
+                <div className="mt-2 text-sm text-[var(--ok)]">Delivery: {selectedScale.duration}</div>
               </div>
 
-              <div className="py-4 sm:py-6 text-center space-y-1">
-                <div className="text-xs text-slate-400 font-mono">Projected Budget Range</div>
-                <div className="text-2xl sm:text-4xl font-extrabold text-white font-['Outfit'] tracking-tight">
-                  ${minEstimate.toLocaleString()} - ${maxEstimate.toLocaleString()}
+              <dl className="mt-6 pt-5 border-t border-[var(--line)] space-y-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--muted)]">Service</dt>
+                  <dd className="text-right text-[var(--text)]">{selectedService.name}</dd>
                 </div>
-                <div className="text-xs font-mono text-emerald-400 pt-1">
-                  Est. Delivery: {selectedScaleObj.duration}
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--muted)]">Scope</dt>
+                  <dd className="text-right text-[var(--text)]">{selectedScale.name}</dd>
                 </div>
-              </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[var(--muted)]">Add-ons</dt>
+                  <dd className="text-right text-[var(--text)]">{selectedAddons.length} selected</dd>
+                </div>
+              </dl>
 
-              <div className="space-y-2 border-t border-slate-800 pt-4 text-xs text-slate-300 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Service:</span>
-                  <span className="truncate max-w-[180px]">{selectedServiceObj.name.split('(')[0]}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Scope:</span>
-                  <span>{selectedScaleObj.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Add-ons:</span>
-                  <span>{selectedAddons.length} Selected</span>
-                </div>
-              </div>
-
-              <div className="pt-5 sm:pt-6">
+              <div className="mt-6">
                 {submitted ? (
-                  <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-xl text-center text-xs text-emerald-300 font-mono space-y-1">
-                    <div className="font-bold flex items-center justify-center gap-1.5 text-sm">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      Quote Specs Locked!
-                    </div>
-                    <div>Scroll down to submit your project contact details.</div>
+                  <div className="p-4 rounded-xl border border-[var(--ok)]/30 bg-[var(--ok)]/10 text-sm text-emerald-200">
+                    <div className="font-semibold">Estimate locked in</div>
+                    <p className="mt-1 text-emerald-200/80">Add your contact details below to receive a full proposal.</p>
                   </div>
                 ) : (
-                  <button
-                    onClick={handleRequestQuote}
-                    className="glow-btn w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25"
-                  >
-                    <span>Lock Estimate & Request Proposal</span>
+                  <button onClick={handleRequestQuote} className="btn btn-primary w-full">
+                    Lock estimate & request proposal
                     <Send className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              <p className="text-[10px] text-slate-500 text-center mt-3 sm:mt-4">
-                * Note: Final scope and pricing are formally validated during our technical discovery session.
+              <p className="mt-4 text-xs text-[var(--muted)] leading-relaxed">
+                Final scope and pricing are confirmed in a technical discovery session.
               </p>
-
             </div>
-          </div>
-
+          </aside>
         </div>
-
       </div>
     </section>
   );

@@ -430,11 +430,11 @@ export default function AdminDashboard({ onLogout, onReturnToSite, onDataUpdated
   });
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 font-sans pb-16">
+    <div className="min-h-dvh bg-[#07090e] text-slate-100 font-sans pb-16 overflow-x-clip">
       
       {/* Top Admin Navigation Header */}
       <header className="sticky top-0 z-40 bg-[#0d111a]/95 backdrop-blur-md border-b border-slate-800 py-3.5 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 p-1 flex items-center justify-center text-cyan-400">
@@ -443,11 +443,11 @@ export default function AdminDashboard({ onLogout, onReturnToSite, onDataUpdated
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-lg text-white font-['Outfit']">LYNTRIX</span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+                <span className="hidden min-[420px]:inline-block text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
                   ADMIN CONSOLE
                 </span>
               </div>
-              <p className="text-[9px] text-slate-400 font-mono">USER MANAGEMENT & CLOUD PRICING PORTAL</p>
+              <p className="hidden sm:block text-[9px] text-slate-400 font-mono">USER MANAGEMENT & CLOUD PRICING PORTAL</p>
             </div>
           </div>
 
@@ -459,7 +459,7 @@ export default function AdminDashboard({ onLogout, onReturnToSite, onDataUpdated
               title="Pull latest accounts directly from Supabase Cloud DB"
             >
               <RefreshCcw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin text-cyan-400' : ''}`} />
-              <span>{isSyncingCloud ? 'Syncing...' : 'Sync Cloud DB'}</span>
+              <span className="hidden md:inline">{isSyncingCloud ? 'Syncing...' : 'Sync Cloud DB'}</span>
             </button>
 
             <button
@@ -475,7 +475,7 @@ export default function AdminDashboard({ onLogout, onReturnToSite, onDataUpdated
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/60 text-xs font-mono text-rose-300 hover:bg-rose-900 border border-rose-800/60 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Logout</span>
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
 

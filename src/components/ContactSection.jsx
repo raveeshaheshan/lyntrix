@@ -1,8 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, MapPin, Send, CheckCircle2, ShieldCheck, Clock, Sparkles, AlertCircle, Calendar, UserCheck, Lock } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, CheckCircle2, Clock, Calendar, UserCheck, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { db } from '../services/db';
 import { emailService } from '../services/emailService';
+
+const TIME_SLOTS = [
+  '09:00 AM - 09:30 AM (IST)',
+  '11:00 AM - 11:30 AM (IST)',
+  '02:00 PM - 02:30 PM (IST)',
+  '04:00 PM - 04:30 PM (IST)',
+  '06:00 PM - 06:30 PM (IST)',
+  '08:00 PM - 08:30 PM (IST)',
+];
+
+const PLATFORMS = ['Google Meet (Video Call)', 'Zoom Workplace', 'Microsoft Teams', 'Direct Phone Call'];
+
+const CHANNELS = [
+  { icon: Mail, label: 'Email', value: 'lyntrixtec@gmail.com', href: 'mailto:lyntrixtec@gmail.com' },
+  { icon: Phone, label: 'Hotline & WhatsApp', value: '+94 71 455 7857', href: 'https://wa.me/94714557857', external: true },
+  { icon: MapPin, label: 'Headquarters', value: 'Colombo, Sri Lanka · Global remote teams' },
+];
+
+function Field({ label, children }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-sm text-[var(--text-2)]">{label}</span>
+      {children}
+    </label>
+  );
+}
 
 export default function ContactSection({ estimateData, onInquirySubmitted, currentUser, onOpenAuth }) {
   const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -16,42 +42,42 @@ export default function ContactSection({ estimateData, onInquirySubmitted, curre
     details: '',
   });
 
-  // Dual Mode State: 'proposal' (Full proposal + optional consultation) vs 'consultation_only' (Standalone consultation booking)
+  // 'proposal' = full proposal (+ optional consultation), 'consultation_only' = standalone booking
   const [formTab, setFormTab] = useState('proposal');
-
-  // Free 1-on-1 Consultation States
   const [wantConsultation, setWantConsultation] = useState(true);
   const [consultationDate, setConsultationDate] = useState(tomorrowDate);
-  const [consultationTime, setConsultationTime] = useState('10:00 AM - 10:30 AM (IST)');
-  const [meetingPlatform, setMeetingPlatform] = useState('Google Meet (Video Call)');
+  const [consultationTime, setConsultationTime] = useState(TIME_SLOTS[0]);
+  const [meetingPlatform, setMeetingPlatform] = useState(PLATFORMS[0]);
 
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailNotice, setEmailNotice] = useState('');
 
-  // Auto-sync with current logged-in user profile
   useEffect(() => {
     if (currentUser) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         name: currentUser.name || prev.name || '',
         email: currentUser.email || prev.email,
-        phone: currentUser.phone || prev.phone || ''
+        phone: currentUser.phone || prev.phone || '',
       }));
     }
   }, [currentUser]);
 
   useEffect(() => {
     if (estimateData) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         service: estimateData.service ? estimateData.service.split('(')[0].trim() : prev.service,
         budget: estimateData.estimateRange || prev.budget,
-        details: `Pre-configured from Estimator: ${estimateData.service} (${estimateData.scale}). Est. Budget: ${estimateData.estimateRange}.`
+        details: `Pre-configured from Estimator: ${estimateData.service} (${estimateData.scale}). Est. Budget: ${estimateData.estimateRange}.`,
       }));
       setFormTab('proposal');
     }
   }, [estimateData]);
+
+  const isConsultationOnly = formTab === 'consultation_only';
+  const showScheduler = isConsultationOnly || wantConsultation;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,468 +89,285 @@ export default function ContactSection({ estimateData, onInquirySubmitted, curre
 
     setIsSubmitting(true);
 
-    const isConsultationOnly = formTab === 'consultation_only';
-
     const newLead = {
       id: `LYN-${Math.floor(1000 + Math.random() * 9000)}`,
       name: formData.name || currentUser.name || 'Valued Client',
       email: formData.email || currentUser.email,
       phone: formData.phone || currentUser.phone || 'N/A',
       service: isConsultationOnly ? `1-on-1 Consultation (${formData.service})` : formData.service,
-      scale: estimateData ? estimateData.scale : (isConsultationOnly ? 'Free Consultation Call' : 'Custom Project'),
+      scale: estimateData ? estimateData.scale : isConsultationOnly ? 'Free Consultation Call' : 'Custom Project',
       budget: isConsultationOnly ? 'Free Consultation' : formData.budget,
       status: 'Pending Approval',
       consultationStatus: 'Pending Approval',
       date: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      details: formData.details || (isConsultationOnly ? `Standalone 1-on-1 Architecture Consultation Booking Request for ${consultationDate} at ${consultationTime}.` : 'N/A'),
+      details:
+        formData.details ||
+        (isConsultationOnly
+          ? `Standalone 1-on-1 Architecture Consultation Booking Request for ${consultationDate} at ${consultationTime}.`
+          : 'N/A'),
       hasConsultation: isConsultationOnly ? true : wantConsultation,
-      consultationDate: (isConsultationOnly || wantConsultation) ? consultationDate : null,
-      consultationTime: (isConsultationOnly || wantConsultation) ? consultationTime : null,
-      meetingPlatform: (isConsultationOnly || wantConsultation) ? meetingPlatform : null,
+      consultationDate: showScheduler ? consultationDate : null,
+      consultationTime: showScheduler ? consultationTime : null,
+      meetingPlatform: showScheduler ? meetingPlatform : null,
     };
 
-    // 1. Save lead proposal/consultation to Cloud DB!
     await db.addInquiry(newLead);
     if (onInquirySubmitted) onInquirySubmitted();
 
-    // 2. Trigger Automated Order Alert to Admin Gmail notifying of Pending Consultation Approval!
-    const adminAlertResult = await emailService.sendAdminOrderAlert(newLead);
+    await emailService.sendAdminOrderAlert(newLead);
 
-    const noticeText = isConsultationOnly
-      ? `⏳ Free 1-on-1 Consultation Request for ${consultationDate} at ${consultationTime} saved! Status: Pending Admin Approval. Admin will review & email your confirmed meeting link once approved.`
-      : (wantConsultation 
-          ? `⏳ Proposal & Consultation Request for ${consultationDate} saved! Status: Pending Admin Approval. Admin will review & email confirmed meeting link once approved.`
-          : `📧 Proposal received! Our Architecture team will review your specifications.`);
-
-    setEmailNotice(noticeText);
+    setEmailNotice(
+      isConsultationOnly
+        ? `Free 1-on-1 consultation request for ${consultationDate} at ${consultationTime} saved. Status: pending admin approval. You will be emailed the confirmed meeting link once approved.`
+        : wantConsultation
+          ? `Proposal and consultation request for ${consultationDate} saved. Status: pending admin approval. You will be emailed the confirmed meeting link once approved.`
+          : 'Proposal received. Our architecture team will review your specifications.'
+    );
 
     setIsSubmitting(false);
     setSubmitted(true);
     try {
-      confetti({
-        particleCount: 100,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-    } catch (err) {}
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 }, colors: ['#38bdf8', '#818cf8', '#ffffff'] });
+    } catch (err) {
+      // confetti is decorative
+    }
   };
 
+  const set = (key) => (e) => setFormData({ ...formData, [key]: e.target.value });
+
   return (
-    <section id="contact" className="py-16 sm:py-24 relative bg-transparent">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-          
-          {/* Left Column: Direct Contact & SLA Details */}
-          <div className="lg:col-span-5 space-y-6 sm:space-y-8">
-            <div className="space-y-3 sm:space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono text-cyan-400">
-                <Mail className="w-3.5 h-3.5" />
-                <span>EXECUTIVE ADVISORY CONTACT</span>
+    <section id="contact" className="section">
+      <div className="container-x">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+          {/* Left */}
+          <div className="lg:col-span-5 space-y-8">
+            <div>
+              <div className="eyebrow">
+                <span className="idx">09</span>
+                <span className="rule" aria-hidden="true" />
+                <span>Contact</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white font-['Outfit']">
-                Let's Build Your <span className="text-gradient-cyan">Next Platform</span>
+              <h2 className="h2 mt-4">
+                Let’s build your <span className="accent">next platform.</span>
               </h2>
-              <p className="text-slate-300 text-xs sm:text-base font-light">
-                Ready to accelerate software development, migrate to cloud, or lock down cybersecurity? Connect directly with our lead architects.
+              <p className="lead mt-5">
+                Accelerating software delivery, migrating to cloud or locking down security? Talk directly with our lead architects.
               </p>
             </div>
 
-            {/* Direct Channels */}
-            <div className="space-y-3 sm:space-y-4">
-              <div className="glass-card p-3.5 sm:p-4 rounded-xl border border-slate-800 flex items-center gap-3 sm:gap-4">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-                  <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div>
-                  <div className="text-[10px] sm:text-xs text-slate-400 font-mono uppercase">Direct Advisory Email</div>
-                  <a href="mailto:lyntrixtec@gmail.com" className="text-xs sm:text-sm font-bold text-white hover:text-cyan-400 font-mono">
-                    lyntrixtec@gmail.com
-                  </a>
-                </div>
-              </div>
+            <ul className="surface divide-y divide-[var(--line)] overflow-hidden">
+              {CHANNELS.map(({ icon: Icon, label, value, href, external }) => {
+                const inner = (
+                  <>
+                    <span className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] grid place-items-center shrink-0">
+                      <Icon className="w-5 h-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="label block">{label}</span>
+                      <span className="block text-white font-medium break-words">{value}</span>
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={label}>
+                    {href ? (
+                      <a
+                        href={href}
+                        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        className="flex items-center gap-4 p-4 sm:p-5 hover:bg-white/[0.03] transition-colors"
+                      >
+                        {inner}
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-4 p-4 sm:p-5">{inner}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
 
-              <div className="glass-card p-3.5 sm:p-4 rounded-xl border border-slate-800 flex items-center gap-3 sm:gap-4">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div>
-                  <div className="text-[10px] sm:text-xs text-slate-400 font-mono uppercase">Hotline & WhatsApp Advisory</div>
-                  <a href="https://wa.me/94714557857" target="_blank" rel="noopener noreferrer" className="text-xs sm:text-sm font-bold text-white hover:text-emerald-400 font-mono flex items-center gap-1.5">
-                    <span>+94 71 455 7857</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">WhatsApp</span>
-                  </a>
-                </div>
-              </div>
-
-              <div className="glass-card p-3.5 sm:p-4 rounded-xl border border-slate-800 flex items-center gap-3 sm:gap-4">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div>
-                  <div className="text-[10px] sm:text-xs text-slate-400 font-mono uppercase">Headquarters</div>
-                  <div className="text-xs sm:text-sm font-bold text-white">
-                    Colombo, Sri Lanka & Global Remote Teams
-                  </div>
-                </div>
-              </div>
+            <div className="flex items-start gap-3 text-sm text-[var(--text-2)]">
+              <Clock className="w-5 h-5 text-[var(--ok)] shrink-0 mt-0.5" />
+              <p>Every inquiry alerts our team instantly and is acknowledged within 2 hours.</p>
             </div>
-
-            {/* Response Guarantee Badge */}
-            <div className="p-4 sm:p-5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5 sm:space-y-2">
-              <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
-                <Clock className="w-4 h-4" />
-                <span>RAPID DISCOVERY GUARANTEE</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                All business inquiries trigger an <strong>Instant Automated Email to Admin</strong> and are acknowledged within 2 hours.
-              </p>
-            </div>
-
           </div>
 
-          {/* Right Column: Contact Form */}
-          <div className="lg:col-span-7 glass-card p-5 sm:p-8 lg:p-10 rounded-2xl border border-slate-800 relative w-full">
-            
+          {/* Right */}
+          <div className="lg:col-span-7 surface p-5 sm:p-8 lg:p-10 w-full">
             {submitted ? (
-              <div className="py-8 sm:py-12 text-center space-y-4 animate-in fade-in zoom-in duration-300">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/40">
-                  <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8" />
+              <div className="py-8 sm:py-12 text-center space-y-4 fade-up">
+                <div className="w-14 h-14 rounded-full bg-[var(--ok)]/10 text-[var(--ok)] border border-[var(--ok)]/30 grid place-items-center mx-auto">
+                  <CheckCircle2 className="w-7 h-7" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white font-['Outfit']">Proposal Request Saved to Cloud!</h3>
-                <p className="text-slate-300 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
-                  Thank you <strong className="text-cyan-400">{formData.name}</strong>. Your project proposal details have been stored in Cloud DB.
+                <h3 className="h3">Request received</h3>
+                <p className="text-[var(--text-2)] max-w-md mx-auto">
+                  Thank you, <strong className="text-white">{formData.name}</strong>. Your details have been saved securely.
                 </p>
-
                 {emailNotice && (
-                  <div className="p-3 bg-cyan-950/80 border border-cyan-500/60 rounded-xl text-xs font-mono text-cyan-300 max-w-md mx-auto flex items-center justify-center gap-2">
-                    <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>{emailNotice}</span>
-                  </div>
+                  <p className="text-sm text-[var(--text-2)] max-w-md mx-auto p-4 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-soft)]">
+                    {emailNotice}
+                  </p>
                 )}
-
-                <button
-                  onClick={() => setSubmitted(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-mono hover:bg-slate-700 transition-colors"
-                >
-                  Submit Another Inquiry
+                <button onClick={() => setSubmitted(false)} className="btn btn-ghost">
+                  Submit another inquiry
                 </button>
               </div>
             ) : !currentUser ? (
-              /* Auth Restriction Banner for Unauthenticated Users */
-              <div className="py-8 px-4 text-center space-y-6 animate-in fade-in duration-300">
-                <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center mx-auto">
-                  <Lock className="w-8 h-8" />
+              <div className="py-8 text-center space-y-6 max-w-md mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] grid place-items-center mx-auto">
+                  <Lock className="w-6 h-6" />
                 </div>
-
-                <div className="space-y-2 max-w-md mx-auto">
-                  <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase">
-                    REGISTERED CLIENTS ONLY
-                  </span>
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-white font-['Outfit']">
-                    Sign In to Submit Proposals
-                  </h3>
-                  <p className="text-xs text-slate-300 font-mono leading-relaxed">
-                    To maintain enterprise security and schedule 1-on-1 architecture consultations, technical proposals can only be submitted by verified Lyntrix accounts.
+                <div className="space-y-3">
+                  <span className="chip chip-accent">Registered clients only</span>
+                  <h3 className="h3">Sign in to submit a proposal</h3>
+                  <p className="text-sm text-[var(--text-2)] leading-relaxed">
+                    To keep engagements secure and schedule 1-on-1 architecture consultations, proposals are accepted from verified Lyntrix accounts.
                   </p>
                 </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 max-w-md mx-auto">
-                  <button
-                    type="button"
-                    onClick={() => onOpenAuth && onOpenAuth('signin')}
-                    className="glow-btn w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 text-slate-950 font-bold font-mono text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25"
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    <span>Sign In to Request Proposal</span>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button type="button" onClick={() => onOpenAuth && onOpenAuth('signin')} className="btn btn-primary">
+                    <UserCheck className="w-4 h-4" /> Sign in
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => onOpenAuth && onOpenAuth('signup')}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 text-slate-200 border border-slate-700 hover:text-white font-bold font-mono text-xs flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <span>Register Free Account</span>
+                  <button type="button" onClick={() => onOpenAuth && onOpenAuth('signup')} className="btn btn-ghost">
+                    Create free account
                   </button>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-                
-                {/* Mode Selector Tabs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1.5 rounded-xl bg-slate-900/90 border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setFormTab('proposal')}
-                    className={`py-2.5 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all ${
-                      formTab === 'proposal'
-                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/60 shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Send className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>1. Request Full Technical Proposal</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFormTab('consultation_only')}
-                    className={`py-2.5 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all ${
-                      formTab === 'consultation_only'
-                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/60 shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>2. Book Free 1-on-1 Consultation Only</span>
-                  </button>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div role="tablist" aria-label="Request type" className="grid sm:grid-cols-2 gap-1.5 p-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)]">
+                  {[
+                    { id: 'proposal', icon: Send, label: 'Technical proposal' },
+                    { id: 'consultation_only', icon: Calendar, label: 'Free consultation only' },
+                  ].map(({ id, icon: Icon, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={formTab === id}
+                      onClick={() => setFormTab(id)}
+                      className={`min-h-[2.75rem] px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                        formTab === id ? 'bg-white/10 text-white' : 'text-[var(--muted)] hover:text-white'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${formTab === id ? 'text-[var(--accent)]' : ''}`} />
+                      {label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-white font-['Outfit']">
-                      {formTab === 'consultation_only' ? 'Book Free 1-on-1 Architecture Consultation' : 'Request Technical Proposal & Scope'}
+                    <h3 className="h3 !text-xl">
+                      {isConsultationOnly ? 'Book a free architecture consultation' : 'Request a technical proposal'}
                     </h3>
-                    <div className="text-[11px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
-                      <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Authenticated Client: <strong>{currentUser.email}</strong></span>
+                    <div className="text-xs text-[var(--ok)] flex items-center gap-1.5 mt-1.5 break-all">
+                      <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                      Signed in as {currentUser.email}
                     </div>
                   </div>
-                  {estimateData && formTab === 'proposal' && (
-                    <span className="text-[10px] sm:text-xs font-mono text-cyan-400 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-800 w-fit">
-                      ⚡ Pre-filled from Estimator
-                    </span>
-                  )}
+                  {estimateData && !isConsultationOnly && <span className="chip chip-accent">Pre-filled from estimator</span>}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-mono text-slate-300">Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Dilneth Madushanka"
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 sm:py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm focus:border-cyan-400 focus:outline-none transition-colors"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-mono text-slate-300">Corporate Email *</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. name@company.com"
-                      value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 sm:py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm focus:border-cyan-400 focus:outline-none transition-colors font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-mono text-slate-300">Phone Number (Optional)</label>
-                    <input
-                      type="tel"
-                      placeholder="+94 71 455 7857"
-                      value={formData.phone}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 sm:py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm focus:border-cyan-400 focus:outline-none transition-colors font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-mono text-slate-300">Primary Technology Area</label>
-                    <select
-                      value={formData.service}
-                      onChange={e => setFormData({ ...formData, service: e.target.value })}
-                      className="w-full px-3.5 py-2.5 sm:py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm focus:border-cyan-400 focus:outline-none transition-colors"
-                    >
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field label="Full name *">
+                    <input type="text" required autoComplete="name" placeholder="Your name" value={formData.name} onChange={set('name')} className="field" />
+                  </Field>
+                  <Field label="Email *">
+                    <input type="email" required autoComplete="email" placeholder="name@company.com" value={formData.email} onChange={set('email')} className="field" />
+                  </Field>
+                  <Field label="Phone (optional)">
+                    <input type="tel" autoComplete="tel" placeholder="+94 71 455 7857" value={formData.phone} onChange={set('phone')} className="field" />
+                  </Field>
+                  <Field label="Primary technology area">
+                    <select value={formData.service} onChange={set('service')} className="field">
                       <option>Software Development</option>
                       <option>Cloud Migration & DevOps</option>
                       <option>Cybersecurity Defense</option>
                       <option>IT Consulting & Strategy</option>
                       <option>24/7 Managed IT Support</option>
                     </select>
-                  </div>
+                  </Field>
                 </div>
 
-                {/* Consultation Details (Required for Consultation Only mode or if checked in Proposal mode) */}
-                {(formTab === 'consultation_only' || wantConsultation) && (
-                  <div className="p-4 rounded-xl bg-slate-900/90 border border-cyan-500/40 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 font-mono text-xs text-cyan-400 font-bold">
-                        <Calendar className="w-4 h-4 text-cyan-400" />
-                        <span>SCHEDULE FREE 1-ON-1 ARCHITECTURE SESSION</span>
-                      </div>
-                      {formTab === 'proposal' && (
-                        <label className="flex items-center gap-2 text-xs font-mono text-slate-300 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={wantConsultation}
-                            onChange={e => setWantConsultation(e.target.checked)}
-                            className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-cyan-400 focus:ring-0 cursor-pointer"
-                          />
-                          <span>Include Consultation</span>
-                        </label>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                      <div>
-                        <label className="text-[11px] font-mono text-slate-300 block mb-1">Preferred Date *</label>
-                        <input
-                          type="date"
-                          required
-                          min={tomorrowDate}
-                          value={consultationDate}
-                          onChange={e => setConsultationDate(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-cyan-400 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-mono text-slate-300 block mb-1">Preferred Time Slot *</label>
-                        <select
-                          value={consultationTime}
-                          onChange={e => setConsultationTime(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-cyan-300 text-xs font-mono focus:border-cyan-400 focus:outline-none"
-                        >
-                          <option value="09:00 AM - 09:30 AM (IST)">09:00 AM - 09:30 AM (IST)</option>
-                          <option value="11:00 AM - 11:30 AM (IST)">11:00 AM - 11:30 AM (IST)</option>
-                          <option value="02:00 PM - 02:30 PM (IST)">02:00 PM - 02:30 PM (IST)</option>
-                          <option value="04:00 PM - 04:30 PM (IST)">04:00 PM - 04:30 PM (IST)</option>
-                          <option value="06:00 PM - 06:30 PM (IST)">06:00 PM - 06:30 PM (IST)</option>
-                          <option value="08:00 PM - 08:30 PM (IST)">08:00 PM - 08:30 PM (IST)</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-mono text-slate-300 block mb-1">Meeting Platform *</label>
-                        <select
-                          value={meetingPlatform}
-                          onChange={e => setMeetingPlatform(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-indigo-300 text-xs font-mono focus:border-cyan-400 focus:outline-none"
-                        >
-                          <option value="Google Meet (Video Call)">Google Meet (Video Call)</option>
-                          <option value="Zoom Workplace">Zoom Workplace</option>
-                          <option value="Microsoft Teams">Microsoft Teams</option>
-                          <option value="Direct Phone Call">Direct Phone Call</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-slate-300">
-                    {formTab === 'consultation_only' ? 'Discussion Notes / Topics (Optional)' : 'Project Requirements & Scope Details *'}
-                  </label>
+                <Field label={isConsultationOnly ? 'Topics to discuss (optional)' : 'Project requirements & scope *'}>
                   <textarea
-                    rows={formTab === 'consultation_only' ? 2 : 3}
-                    required={formTab === 'proposal'}
-                    placeholder={formTab === 'consultation_only' ? "Enter any specific technical topics or questions you'd like to discuss during the call..." : "Briefly describe your application goals, target platform, legacy integrations, or expected deliverables..."}
+                    rows={4}
+                    required={!isConsultationOnly}
+                    placeholder={
+                      isConsultationOnly
+                        ? 'Any specific technical topics or questions for the call…'
+                        : 'Briefly describe your goals, target platform, integrations or expected deliverables…'
+                    }
                     value={formData.details}
-                    onChange={e => setFormData({ ...formData, details: e.target.value })}
-                    className="w-full px-3.5 py-2.5 sm:py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs sm:text-sm focus:border-cyan-400 focus:outline-none transition-colors resize-none"
+                    onChange={set('details')}
+                    className="field resize-y"
                   />
-                </div>
+                </Field>
 
-                {/* Free 1-on-1 Consultation Time Scheduler Section */}
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-cyan-500/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-mono text-xs text-cyan-400 font-bold">
-                      <Calendar className="w-4 h-4 text-cyan-400" />
-                      <span>SCHEDULE FREE 1-ON-1 ARCHITECTURE CONSULTATION</span>
+                <div className="p-4 sm:p-5 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-white">
+                      <Calendar className="w-4 h-4 text-[var(--accent)]" />
+                      Free 1-on-1 architecture session
                     </div>
-                    <label className="flex items-center gap-2 text-xs font-mono text-slate-300 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={wantConsultation}
-                        onChange={e => setWantConsultation(e.target.checked)}
-                        className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-cyan-400 focus:ring-0 cursor-pointer"
-                      />
-                      <span>Include Free Consultation</span>
-                    </label>
+                    {!isConsultationOnly && (
+                      <label className="flex items-center gap-2.5 text-sm text-[var(--text-2)] cursor-pointer select-none min-h-[2.5rem]">
+                        <input
+                          type="checkbox"
+                          checked={wantConsultation}
+                          onChange={(e) => setWantConsultation(e.target.checked)}
+                          className="w-5 h-5 rounded accent-[var(--accent)] cursor-pointer"
+                        />
+                        Include consultation
+                      </label>
+                    )}
                   </div>
 
-                  {wantConsultation && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                      <div>
-                        <label className="text-[11px] font-mono text-slate-300 block mb-1">Preferred Date *</label>
-                        <input
-                          type="date"
-                          required={wantConsultation}
-                          min={tomorrowDate}
-                          value={consultationDate}
-                          onChange={e => setConsultationDate(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-cyan-400 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-mono text-slate-300 block mb-1">Preferred Time Slot *</label>
-                        <select
-                          value={consultationTime}
-                          onChange={e => setConsultationTime(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-cyan-300 text-xs font-mono focus:border-cyan-400 focus:outline-none"
-                        >
-                          <option value="09:00 AM - 09:30 AM (IST)">09:00 AM - 09:30 AM (IST)</option>
-                          <option value="11:00 AM - 11:30 AM (IST)">11:00 AM - 11:30 AM (IST)</option>
-                          <option value="02:00 PM - 02:30 PM (IST)">02:00 PM - 02:30 PM (IST)</option>
-                          <option value="04:00 PM - 04:30 PM (IST)">04:00 PM - 04:30 PM (IST)</option>
-                          <option value="06:00 PM - 06:30 PM (IST)">06:00 PM - 06:30 PM (IST)</option>
-                          <option value="08:00 PM - 08:30 PM (IST)">08:00 PM - 08:30 PM (IST)</option>
+                  {showScheduler && (
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <Field label="Date *">
+                        <input type="date" required min={tomorrowDate} value={consultationDate} onChange={(e) => setConsultationDate(e.target.value)} className="field" />
+                      </Field>
+                      <Field label="Time slot *">
+                        <select value={consultationTime} onChange={(e) => setConsultationTime(e.target.value)} className="field">
+                          {TIME_SLOTS.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
                         </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-mono text-slate-300 block mb-1">Meeting Platform *</label>
-                        <select
-                          value={meetingPlatform}
-                          onChange={e => setMeetingPlatform(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-indigo-300 text-xs font-mono focus:border-cyan-400 focus:outline-none"
-                        >
-                          <option value="Google Meet (Video Call)">Google Meet (Video Call)</option>
-                          <option value="Zoom Workplace">Zoom Workplace</option>
-                          <option value="Microsoft Teams">Microsoft Teams</option>
-                          <option value="Direct Phone Call">Direct Phone Call</option>
+                      </Field>
+                      <Field label="Platform *">
+                        <select value={meetingPlatform} onChange={(e) => setMeetingPlatform(e.target.value)} className="field">
+                          {PLATFORMS.map((p) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
                         </select>
-                      </div>
+                      </Field>
                     </div>
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="glow-btn w-full py-3.5 sm:py-4 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 text-slate-950 font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all"
-                >
+                <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full !min-h-[3.25rem] disabled:opacity-70">
                   {isSubmitting ? (
-                    <span className="flex items-center gap-2 font-mono">
-                      <span className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
-                      Dispatching Order & Email Confirmation...
-                    </span>
+                    <>
+                      <span className="w-4 h-4 rounded-full border-2 border-[var(--accent-ink)] border-t-transparent animate-spin" />
+                      Sending…
+                    </>
                   ) : (
                     <>
-                      <span>Submit Proposal & Confirm Consultation</span>
+                      {isConsultationOnly ? 'Book consultation' : 'Submit proposal request'}
                       <Send className="w-4 h-4" />
                     </>
                   )}
                 </button>
 
-                <p className="text-[10px] sm:text-[11px] text-slate-400 text-center font-mono">
-                  📧 Automatically sends instant notification to lyntrixtec@gmail.com.
+                <p className="text-xs text-[var(--muted)] text-center">
+                  Our team is notified instantly at lyntrixtec@gmail.com.
                 </p>
-
               </form>
             )}
-
           </div>
-
         </div>
-
       </div>
     </section>
   );

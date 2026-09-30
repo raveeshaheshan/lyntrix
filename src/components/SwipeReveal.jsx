@@ -1,43 +1,57 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * SwipeReveal
- * Wraps page sections in a silky smooth, hardware-accelerated swipe-in entrance
- * transition as the user scrolls / swipes into each section.
+ * Fades a block in once as it scrolls into view.
+ * After the reveal the transform is removed entirely: a lingering `transform`
+ * turns the wrapper into the containing block for descendants, which breaks
+ * `position: fixed` modals and `position: sticky` panels inside it.
  */
 export default function SwipeReveal({ children, className = '', delay = 0 }) {
-  const [isVisible, setIsVisible] = useState(false);
+  const [state, setState] = useState('hidden'); // hidden -> shown -> done
   const ref = useRef(null);
 
   useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+
+    if (
+      typeof IntersectionObserver === 'undefined' ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setState('done');
+      return undefined;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setIsVisible(true);
+          setState('shown');
+          observer.disconnect();
         }
       },
-      {
-        threshold: 0.08,
-        rootMargin: '0px 0px -30px 0px'
-      }
+      { threshold: 0.05, rootMargin: '0px 0px -40px 0px' }
     );
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
+    observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  const style =
+    state === 'done'
+      ? undefined
+      : {
+          opacity: state === 'shown' ? 1 : 0,
+          transform: state === 'shown' ? 'translate3d(0,0,0)' : 'translate3d(0,20px,0)',
+          transition: `opacity 0.6s var(--ease) ${delay}ms, transform 0.6s var(--ease) ${delay}ms`,
+        };
 
   return (
     <div
       ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-700 ease-out transform will-change-transform ${
-        isVisible
-          ? 'opacity-100 translate-y-0 scale-100'
-          : 'opacity-0 translate-y-10 scale-[0.98]'
-      } ${className}`}
+      style={style}
+      onTransitionEnd={(e) => {
+        if (e.target === ref.current && e.propertyName === 'transform') setState('done');
+      }}
+      className={className}
     >
       {children}
     </div>

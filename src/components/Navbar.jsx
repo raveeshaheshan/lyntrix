@@ -1,267 +1,232 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Menu, X, ArrowRight, Sparkles, Terminal, Lock, LayoutDashboard, Search, User, LogOut, AlertTriangle } from 'lucide-react';
+import { Menu, X, ArrowRight, LayoutDashboard, Search, User, LogOut, AlertTriangle } from 'lucide-react';
 
-export default function Navbar({ 
-  onOpenCalculator, 
-  isAdminLoggedIn, 
-  onOpenAdminDashboard, 
+const NAV_LINKS = [
+  { name: 'Services', href: '#services' },
+  { name: 'Solutions', href: '#solutions' },
+  { name: 'Case Studies', href: '#case-studies' },
+  { name: 'Stack', href: '#tech-stack' },
+  { name: 'Estimator', href: '#calculator' },
+  { name: 'FAQ', href: '#faq' },
+];
+
+export default function Navbar({
+  onOpenCalculator,
+  isAdminLoggedIn,
+  onOpenAdminDashboard,
   onOpenTracker,
   onOpenAuth,
   onOpenUserProfile,
   currentUser,
   onLogoutUser,
-  maintenanceConfig
+  maintenanceConfig,
 }) {
   const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const navLinks = [
-    { name: 'Services', href: '#services' },
-    { name: 'Solutions', href: '#solutions' },
-    { name: 'Case Studies', href: '#case-studies' },
-    { name: 'Tech Stack', href: '#tech-stack' },
-    { name: 'Estimator', href: '#calculator' },
-    { name: 'FAQ', href: '#faq' },
-    { name: 'Contact', href: '#contact' },
-  ];
+  // Lock page scroll while the mobile sheet is open; close on Escape / when resized to desktop
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onMq = () => mq.matches && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    mq.addEventListener('change', onMq);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+      mq.removeEventListener('change', onMq);
+    };
+  }, [open]);
+
+  const close = () => setOpen(false);
+  const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U';
 
   return (
-    <>
-      {/* Mobile & Tablet Fullscreen Background Blur Overlay when menu open */}
-      {mobileMenuOpen && (
-        <div 
-          onClick={() => setMobileMenuOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-xl transition-all duration-300 lg:hidden"
-          aria-hidden="true"
-        />
+    <header
+      className={`fixed top-0 inset-x-0 z-50 transition-[background-color,border-color] duration-300 border-b ${
+        scrolled || open ? 'bg-[#06080d]/90 backdrop-blur-xl border-white/[0.08]' : 'bg-transparent border-transparent'
+      }`}
+    >
+      {maintenanceConfig?.enabled && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-amber-200 text-xs flex items-center justify-center gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="font-semibold text-amber-300 shrink-0">Maintenance</span>
+          <span className="truncate min-w-0 text-amber-100/90">{maintenanceConfig.message}</span>
+          {maintenanceConfig.eta && (
+            <span className="hidden sm:inline shrink-0 chip border-amber-500/30 text-amber-200 bg-transparent">
+              ETA {maintenanceConfig.eta}
+            </span>
+          )}
+        </div>
       )}
 
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? 'bg-[#07090e]/95 backdrop-blur-md border-b border-slate-800/80 shadow-xl shadow-black/40' 
-          : 'bg-gradient-to-b from-slate-950/90 to-transparent'
-      }`}>
-        {/* Top Maintenance Announcement Banner when enabled */}
-        {maintenanceConfig?.enabled && (
-          <div className="bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border-b border-amber-500/60 px-4 py-2 text-amber-200 text-xs font-mono text-center flex items-center justify-center gap-2 shadow-lg shadow-amber-950/40">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
-            <span className="font-bold text-amber-300 shrink-0">[SERVER MAINTENANCE ACTIVE]</span>
-            <span className="truncate max-w-xl text-white">{maintenanceConfig.message}</span>
-            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/80 text-amber-300 font-bold shrink-0">
-              ETA: {maintenanceConfig.eta}
+      <div className="container-x h-16 flex items-center justify-between gap-4">
+        {/* Brand */}
+        <a href="#" className="flex items-center gap-2.5 shrink-0" aria-label="Lyntrix home">
+          <span className="w-9 h-9 rounded-[10px] bg-[var(--surface-2)] border border-white/10 p-1.5 grid place-items-center">
+            <img src="/logo-icon.svg" alt="" className="w-full h-full object-contain" />
+          </span>
+          <span className="font-['Outfit'] font-semibold text-[1.15rem] tracking-[0.08em] text-white leading-none">
+            LYNTRIX
+            <span className="hidden sm:inline ml-2 font-['Fira_Code'] text-[10px] font-normal tracking-[0.14em] text-[var(--muted)]">
+              IT SERVICES
             </span>
-          </div>
-        )}
+          </span>
+        </a>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-between gap-2">
-            
-            {/* Brand Logo */}
-            <a href="#" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-              <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden bg-slate-900 border border-cyan-500/30 p-1 flex items-center justify-center group-hover:border-cyan-400 transition-colors shadow-lg shadow-cyan-500/10">
-                <img src="/logo-icon.svg" alt="Lyntrix Icon" className="w-full h-full object-contain transform group-hover:scale-110 transition-transform duration-300" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1">
-                  <span className="font-extrabold text-lg sm:text-xl tracking-wider text-white font-['Outfit'] group-hover:text-cyan-400 transition-colors">LYNTRIX</span>
-                  <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1 sm:px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/50">IT SERVICES</span>
-                </div>
-                <p className="text-[8px] sm:text-[9px] text-slate-400 tracking-widest uppercase font-mono hidden xs:block">Innovate • Integrate • Elevate</p>
-              </div>
+        {/* Desktop links */}
+        <nav className="hidden lg:flex items-center gap-1" aria-label="Primary">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.name}
+              href={l.href}
+              className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] hover:text-white hover:bg-white/5 transition-colors"
+            >
+              {l.name}
             </a>
+          ))}
+        </nav>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1 glass-panel px-3 py-1.5 rounded-full border border-slate-800">
-              {navLinks.map((link) => (
+        {/* Desktop actions */}
+        <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <button onClick={onOpenTracker} className="btn btn-ghost btn-sm" title="Track project status">
+            <Search className="w-4 h-4" />
+            <span className="hidden xl:inline">Track</span>
+          </button>
+
+          {currentUser ? (
+            <div className="flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.03] p-1">
+              <button
+                onClick={onOpenUserProfile}
+                className="flex items-center gap-2 pl-1 pr-2 h-8 rounded-md hover:bg-white/5 transition-colors"
+                title="Profile, password & proposals"
+              >
+                <span className="w-6 h-6 rounded-full bg-[var(--accent)] text-[var(--accent-ink)] text-[11px] font-bold grid place-items-center">
+                  {initial}
+                </span>
+                <span className="text-sm text-white max-w-[110px] truncate">{currentUser.name}</span>
+                {isAdminLoggedIn && <span className="chip chip-accent !py-0">Admin</span>}
+              </button>
+              <button
+                onClick={onLogoutUser}
+                className="w-8 h-8 grid place-items-center rounded-md text-[var(--muted)] hover:text-rose-300 hover:bg-white/5 transition-colors"
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button onClick={onOpenAuth} className="btn btn-ghost btn-sm">
+              <User className="w-4 h-4" />
+              <span>Sign in</span>
+            </button>
+          )}
+
+          {isAdminLoggedIn && (
+            <button onClick={onOpenAdminDashboard} className="btn btn-ghost btn-sm" title="Open admin console">
+              <LayoutDashboard className="w-4 h-4 text-[var(--accent)]" />
+              <span className="hidden xl:inline">Console</span>
+            </button>
+          )}
+
+          <a href="#contact" className="btn btn-primary btn-sm">
+            Get a proposal
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+
+        {/* Mobile toggle */}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="lg:hidden w-11 h-11 -mr-2 grid place-items-center rounded-xl text-white hover:bg-white/5"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+        >
+          {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Mobile sheet */}
+      {open && (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 top-16 bg-[#06080d]/98 overflow-y-auto overscroll-contain fade-up">
+          <div className="container-x py-6 pb-[max(2rem,env(safe-area-inset-bottom))] flex flex-col min-h-full">
+            <nav className="flex flex-col" aria-label="Mobile">
+              {[...NAV_LINKS, { name: 'Contact', href: '#contact' }].map((l) => (
                 <a
-                  key={link.name}
-                  href={link.href}
-                  className="text-xs xl:text-sm font-medium text-slate-300 hover:text-cyan-400 px-2.5 py-1 rounded-full hover:bg-slate-800/50 transition-all duration-200"
+                  key={l.name}
+                  href={l.href}
+                  onClick={close}
+                  className="flex items-center justify-between py-4 border-b border-white/[0.06] font-['Outfit'] text-2xl font-medium text-white"
                 >
-                  {link.name}
+                  {l.name}
+                  <ArrowRight className="w-5 h-5 text-[var(--muted)]" />
                 </a>
               ))}
             </nav>
 
-            {/* Right Action Buttons */}
-            <div className="hidden md:flex items-center gap-2 shrink-0">
-              <button
-                onClick={onOpenTracker}
-                className="flex items-center gap-1.5 text-xs font-mono text-cyan-400 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-all"
-                title="Track Project Status"
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">Track Project</span>
-              </button>
-
-              {/* User Account Button or Sign In Button */}
+            <div className="mt-8 space-y-3">
               {currentUser ? (
-                <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono">
-                  <button
-                    onClick={onOpenUserProfile}
-                    className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-800 transition-colors"
-                    title="Manage Profile, Password & View Proposals"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 text-slate-950 font-extrabold flex items-center justify-center text-[10px] border border-cyan-400">
-                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                <div className="surface-2 p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-11 h-11 rounded-full bg-[var(--accent)] text-[var(--accent-ink)] font-bold grid place-items-center shrink-0">
+                      {initial}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-white font-medium truncate flex items-center gap-2">
+                        {currentUser.name}
+                        {isAdminLoggedIn && <span className="chip chip-accent !py-0">Admin</span>}
+                      </div>
+                      <div className="text-xs text-[var(--muted)] truncate">{currentUser.email}</div>
                     </div>
-                    <span className="text-white font-semibold max-w-[100px] truncate">{currentUser.name}</span>
-                    {isAdminLoggedIn && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">
-                        ADMIN
-                      </span>
-                    )}
-                  </button>
-
-                  <button 
-                    onClick={onLogoutUser} 
-                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 rounded transition-colors" 
-                    title="Sign Out"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => { close(); onOpenUserProfile(); }} className="btn btn-ghost btn-sm">
+                      <User className="w-4 h-4" /> Profile
+                    </button>
+                    <button onClick={() => { close(); onLogoutUser(); }} className="btn btn-ghost btn-sm">
+                      <LogOut className="w-4 h-4" /> Sign out
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <button
-                  onClick={onOpenAuth}
-                  className="flex items-center gap-1.5 text-xs font-mono font-semibold text-slate-300 hover:text-white px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-all"
-                >
-                  <User className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Login / Register</span>
+                <button onClick={() => { close(); onOpenAuth(); }} className="btn btn-ghost w-full">
+                  <User className="w-4 h-4" /> Sign in / Register
                 </button>
               )}
+
+              <button onClick={() => { close(); onOpenTracker(); }} className="btn btn-ghost w-full">
+                <Search className="w-4 h-4" /> Track project status
+              </button>
 
               {isAdminLoggedIn && (
-                <button
-                  onClick={onOpenAdminDashboard}
-                  className="flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-400 px-3 py-2 rounded-lg bg-cyan-950 border border-cyan-800 hover:bg-cyan-900 transition-all shadow-md shadow-cyan-950"
-                  title="Open Admin Console"
-                >
-                  <LayoutDashboard className="w-3.5 h-3.5" />
-                  <span>Admin Console</span>
+                <button onClick={() => { close(); onOpenAdminDashboard(); }} className="btn btn-ghost w-full">
+                  <LayoutDashboard className="w-4 h-4 text-[var(--accent)]" /> Admin console
                 </button>
               )}
 
-              <button 
-                onClick={onOpenCalculator}
-                className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden xl:inline">Estimator</span>
-              </button>
+              <a href="#contact" onClick={close} className="btn btn-primary w-full">
+                Get a proposal <ArrowRight className="w-4 h-4" />
+              </a>
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700/60"
-              aria-label="Toggle Navigation Menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-
+            <div className="mt-auto pt-8 flex items-center gap-2 text-xs text-[var(--muted)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--ok)]" />
+              All systems operational
+            </div>
           </div>
         </div>
-
-        {/* Mobile & Tablet Drawer with Blur Overlay */}
-        {mobileMenuOpen && (
-          <div className="relative z-50 lg:hidden glass-panel border-b border-slate-800 px-4 pt-4 pb-6 mt-3 space-y-3 max-h-[85vh] overflow-y-auto animate-in fade-in slide-in-from-top-4 duration-200">
-            <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-800 text-xs font-mono text-cyan-400">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                Systems Operational
-              </span>
-              <span>v2.4 Enterprise</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800/80 hover:text-cyan-400"
-                >
-                  {link.name}
-                </a>
-              ))}
-            </div>
-
-            <div className="pt-3 border-t border-slate-800/80 flex flex-col gap-2">
-              {currentUser ? (
-                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 border border-slate-800 font-mono text-xs space-y-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-500 text-slate-950 font-extrabold flex items-center justify-center text-sm shadow-md border border-cyan-400 shrink-0">
-                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-white font-bold truncate flex items-center gap-1.5">
-                        <span>{currentUser.name}</span>
-                        {isAdminLoggedIn && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">
-                            ADMIN
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">{currentUser.email}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80">
-                    <button
-                      onClick={() => { setMobileMenuOpen(false); onOpenUserProfile(); }}
-                      className="flex-1 py-2 px-3 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 text-[11px] font-bold border border-cyan-800/80 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <User className="w-3.5 h-3.5" />
-                      <span>Manage Profile & 2FA</span>
-                    </button>
-                    <button
-                      onClick={() => { setMobileMenuOpen(false); onLogoutUser(); }}
-                      className="py-2 px-3 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-300 text-[11px] border border-slate-800 transition-colors"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setMobileMenuOpen(false); onOpenAuth(); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-cyan-950 text-cyan-300 font-mono text-xs border border-cyan-800 font-bold"
-                >
-                  <User className="w-4 h-4 text-cyan-400" />
-                  Client Login / Register
-                </button>
-              )}
-
-              <button
-                onClick={() => { setMobileMenuOpen(false); onOpenTracker(); }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-900 text-cyan-300 font-mono text-xs border border-slate-800"
-              >
-                <Search className="w-4 h-4 text-cyan-400" />
-                Track Project Status
-              </button>
-
-              {isAdminLoggedIn && (
-                <button
-                  onClick={() => { setMobileMenuOpen(false); onOpenAdminDashboard(); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-cyan-950 text-cyan-300 font-mono text-sm font-bold border border-cyan-800"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Launch Admin Console
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
-    </>
+      )}
+    </header>
   );
 }

@@ -1,66 +1,83 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, ShieldCheck, Wifi, RefreshCw, Lock, Server } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { RefreshCw, Search } from 'lucide-react';
 
-export default function LatencyWidget() {
+const ROWS = [
+  { label: 'Edge node', value: 'Colombo, LK' },
+  { label: 'Transport', value: 'TLS 1.3 · AES-256' },
+  { label: 'Access model', value: 'Zero-trust' },
+];
+
+export default function LatencyWidget({ onOpenTracker }) {
   const [latency, setLatency] = useState(12);
   const [testing, setTesting] = useState(false);
+  const timer = useRef(null);
+
+  useEffect(() => () => clearInterval(timer.current), []);
 
   const runTest = () => {
+    if (testing) return;
     setTesting(true);
     let count = 0;
-    const interval = setInterval(() => {
+    timer.current = setInterval(() => {
       setLatency(Math.floor(8 + Math.random() * 10));
-      count++;
+      count += 1;
       if (count >= 5) {
-        clearInterval(interval);
+        clearInterval(timer.current);
         setTesting(false);
       }
     }, 150);
   };
 
   return (
-    <div className="glass-panel py-3 px-4 sm:px-6 rounded-2xl border border-cyan-500/30 max-w-4xl mx-auto my-8 shadow-xl shadow-cyan-950/20">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono">
-        
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/40">
-            <Activity className="w-4 h-4" />
-          </div>
+    <div className="surface overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--line)]">
+        <span className="label">Live platform status</span>
+        <span className="flex items-center gap-2 text-xs text-[var(--ok)]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--ok)] opacity-60 animate-ping" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--ok)]" />
+          </span>
+          Operational
+        </span>
+      </div>
+
+      <div className="px-5 py-6">
+        <div className="flex items-end justify-between gap-4">
           <div>
-            <div className="text-[10px] text-slate-400 uppercase">EDGE TELEMETRY NETWORK</div>
-            <div className="text-white font-bold flex items-center gap-2">
-              <span>Lyntrix Edge Node: Asia-South (Colombo)</span>
+            <div className="label">Ping</div>
+            <div className="stat mt-2 tabular-nums">
+              {latency}
+              <span className="text-base text-[var(--muted)] ml-1">ms</span>
             </div>
           </div>
+          <button onClick={runTest} disabled={testing} className="btn btn-ghost btn-sm">
+            <RefreshCw className={`w-4 h-4 ${testing ? 'animate-spin' : ''}`} />
+            {testing ? 'Testing…' : 'Run test'}
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-slate-300">
-          <div className="flex items-center gap-1.5">
-            <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Ping: <strong className="text-emerald-400">{latency}ms</strong></span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5 text-cyan-400" />
-            <span>TLS 1.3 / AES-256</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-purple-400">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Zero-Trust: ACTIVE</span>
-          </div>
-        </div>
-
-        <button
-          onClick={runTest}
-          disabled={testing}
-          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 text-[11px] font-bold border border-slate-800 transition-colors flex items-center gap-1.5 shrink-0"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${testing ? 'animate-spin' : ''}`} />
-          <span>{testing ? 'Testing Ping...' : 'Run Diagnostics'}</span>
-        </button>
-
+        <dl className="mt-6 divide-y divide-[var(--line)] text-sm">
+          {ROWS.map((r) => (
+            <div key={r.label} className="flex items-center justify-between gap-4 py-3">
+              <dt className="text-[var(--muted)]">{r.label}</dt>
+              <dd className="text-[var(--text)] font-mono text-[13px] text-right">{r.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
+
+      {onOpenTracker && (
+        <button
+          onClick={onOpenTracker}
+          className="w-full flex items-center justify-between px-5 py-4 border-t border-[var(--line)] text-sm text-[var(--text-2)] hover:text-white hover:bg-white/[0.03] transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-[var(--accent)]" />
+            Track an existing project
+          </span>
+          <span aria-hidden="true">→</span>
+        </button>
+      )}
     </div>
   );
 }

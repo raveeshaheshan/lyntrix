@@ -15,8 +15,9 @@ import AdminDashboard from './components/AdminDashboard';
 import ProjectTrackerModal from './components/ProjectTrackerModal';
 import AuthModal from './components/AuthModal';
 import UserProfileModal from './components/UserProfileModal';
-import LaserSolidsBackground from './components/LaserSolidsBackground';
-import MatrixBackground from './components/MatrixBackground';
+import AmbientBackground from './components/AmbientBackground';
+import IntroLoader from './components/IntroLoader';
+import ScrollProgress from './components/ScrollProgress';
 import SwipeReveal from './components/SwipeReveal';
 import { db } from './services/db';
 import { LayoutDashboard, AlertTriangle } from 'lucide-react';
@@ -66,6 +67,28 @@ export default function App() {
     return () => {
       window.removeEventListener('lyntrix-maintenance-updated', syncMaintenance);
       window.removeEventListener('lyntrix-db-updated', syncDbState);
+    };
+  }, []);
+
+  // Cursor spotlight: feed pointer position (relative to the hovered card) into CSS vars
+  useEffect(() => {
+    if (!window.matchMedia('(hover: hover)').matches) return undefined;
+    let raf = 0;
+    const onMove = (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const card = e.target.closest?.('.surface-interactive, .glass-card');
+        if (!card) return;
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+        card.style.setProperty('--my', `${e.clientY - r.top}px`);
+      });
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      cancelAnimationFrame(raf);
     };
   }, []);
 
@@ -186,15 +209,12 @@ export default function App() {
   if (maintenanceConfig.enabled && maintenanceConfig.mode === 'full' && !isAdminLoggedIn && viewMode !== 'admin') {
     return (
       <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-300 font-sans">
-        <LaserSolidsBackground opacity={0.35} />
-        {/* Background Cyber Glowing Orbs */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+        <AmbientBackground intensity={0.6} />
 
-        <div className="max-w-xl w-full glass-card p-8 sm:p-12 rounded-3xl border border-amber-500/40 text-center space-y-6 relative z-10 shadow-2xl shadow-amber-950/40 animate-in fade-in zoom-in duration-300">
-          
-          <div className="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
-            <AlertTriangle className="w-10 h-10 animate-bounce" />
+        <div className="max-w-xl w-full glass-card p-6 sm:p-12 rounded-3xl border border-amber-500/30 text-center space-y-6 relative z-10 fade-up">
+
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
@@ -259,15 +279,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-300 relative">
-      {/* High-Tech 3D Holographic Laser Solids Background ("Ganavasthu / Solid Items") */}
-      <LaserSolidsBackground opacity={0.72} />
-      
+      <IntroLoader />
+      <ScrollProgress />
+      <AmbientBackground />
+
       {/* Floating Admin Switcher when logged in */}
       {isAdminLoggedIn && (
-        <div className="fixed bottom-5 right-5 z-50">
+        <div className="fixed right-4 z-50 bottom-[max(1rem,env(safe-area-inset-bottom))]">
           <button
             onClick={() => setViewMode('admin')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-cyan-500 text-slate-950 font-bold font-mono text-xs shadow-2xl shadow-cyan-500/50 hover:bg-cyan-400 transition-all border border-cyan-300"
+            className="btn btn-primary btn-sm shadow-2xl shadow-black/50"
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>Open Admin Console</span>
@@ -333,8 +354,8 @@ export default function App() {
 
       {/* 1-Click Verification Success Toast Notification */}
       {verificationToast && (
-        <div className="fixed top-20 right-5 z-50 p-4 rounded-2xl bg-emerald-950/90 border border-emerald-500/80 text-emerald-300 text-xs font-mono font-bold shadow-2xl shadow-emerald-950 flex items-center gap-2.5 animate-in slide-in-from-top-4 duration-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+        <div className="fixed top-20 inset-x-4 sm:inset-x-auto sm:right-5 sm:max-w-sm z-[80] p-4 rounded-2xl bg-emerald-950/95 border border-emerald-500/50 text-emerald-200 text-sm shadow-2xl shadow-black/50 flex items-center gap-3 fade-up">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
           <span>{verificationToast}</span>
         </div>
       )}
